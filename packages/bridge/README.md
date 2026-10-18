@@ -60,6 +60,7 @@ PI 入口已构建，实际 PI 界面导入与完整 GUI 交互尚未验证。
 
 `Runtime adaptation` 工作流对分支推送和 PR 在 Windows/Linux 上运行检查、构建、MCP 测试，上传可下载的运行件和 SHA256。
 默认只生成 Actions 构建产物。需要发布时，从指定分支手动运行该工作流并勾选 `publish`。
+每次 CI 都会核验两平台包的 SHA256，并组合为 `release-candidate` 下载件；其中选择 Linux 构建的源码 ZIP，避免同名源码包互相覆盖。
 两平台验证通过后，它才会为该次提交创建 `runtime-v0.5.5-runtime.1` 标签及 GitHub 预发布版。
 同名标签/Release 已存在时失败，避免覆盖旧版。再发布需更新 bridge 版本、manifest 与发布说明，MCP 版本自动取 bridge 版本。
 手动工作流按钮需工作流先进入仓库默认分支；可将当前开发分支设为默认分支。
