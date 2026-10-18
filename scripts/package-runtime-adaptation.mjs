@@ -40,7 +40,7 @@ sourceZip.addFile(
     ) + "\n"
   )
 );
-// ZIP 记录日历字段；固定新增元数据的时间，避免两平台合并产物时源码校验和不同。
+// ZIP 记录日历字段；固定元数据时间，使同一平台重复打包的源码校验和稳定。
 sourceZip.getEntry("runtime-source.json").header.time = new Date(2000, 0, 1);
 sourceZip.writeZip(source);
 const files = [archive, source];

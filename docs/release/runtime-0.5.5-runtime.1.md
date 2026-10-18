@@ -33,6 +33,8 @@ Prefilter first-query setup was 4.255 s; subsequent sampled distinct-symbol quer
 The prefilter is rebuilt after restart. TS7 development checks measured 9.784 s to
 1.474 s median in a separate experiment; that does not measure game-source query speed.
 
-Actual PI UI installation, full VS Code GUI behavior and GitHub-hosted workflow execution
+The build workflow has passed on both GitHub-hosted Windows and Linux runners, including
+103 LSP checks, three bridge tests and an extracted-runtime test; consult Actions for each commit.
+Actual PI UI installation, full VS Code GUI behavior and manual Release publication
 remain to be verified. The source preserves other upstream functionality without claiming
 every Toolkit feature has been revalidated or accelerated.
