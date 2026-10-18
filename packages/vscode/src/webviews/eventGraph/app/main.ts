@@ -602,7 +602,7 @@ $("toolCenter").onclick = () => {
 const depthSlider = $("chainDepthSlider") as HTMLInputElement;
 const SLIDER_INF = depthSlider.max;
 $("chainDepthHead").onclick = () => {
-  const open = $("chainDepthOptions").hidden;
+  const open = Boolean($("chainDepthOptions").hidden);
   $("chainDepthOptions").hidden = !open;
   $("chainDepthHead").toggleAttribute("data-open", open);
 };

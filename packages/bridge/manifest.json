@@ -1,0 +1,60 @@
+{
+  "schemaVersion": 1,
+  "id": "local.paradox-toolkit",
+  "name": "Paradox Toolkit Runtime Adaptation",
+  "version": "0.5.5-runtime.1",
+  "description": "px-lsp code intelligence and measured Paradox GUI preview for the active PI-Desktop project.",
+  "author": "jqkj; based on Paradox Modding Toolkit by Joël Deffner",
+  "license": "GPL-3.0-or-later",
+  "main": "main.js",
+  "i18n": {
+    "en": {
+      "name": "Paradox Modding Toolkit",
+      "description": "px-lsp code intelligence, dependency reports, scope inference and measured GUI preview for the active project.",
+      "safetyNotes": "Starts a local px-lsp Node process. Source analysis is read-only; GUI source-edit actions return edits but do not write files."
+    },
+    "zh-CN": {
+      "name": "Paradox 模组工具箱",
+      "description": "为当前项目接入 px-lsp 代码智能、依赖/作用域分析和实测布局规则驱动的 GUI 预览。",
+      "safetyNotes": "会启动本地 px-lsp Node 进程。源码分析只读；GUI 源码编辑动作只返回编辑，不直接写文件。"
+    }
+  },
+  "contributes": {
+    "views": [
+      {
+        "id": "gui-preview",
+        "title": { "en": "Paradox GUI", "zh-CN": "Paradox GUI 预览" },
+        "icon": "image",
+        "entry": "views/index.html",
+        "order": 32
+      }
+    ],
+    "settings": [
+      {
+        "key": "gamePath",
+        "title": "CK3 game/ path",
+        "type": "string",
+        "default": ""
+      },
+      {
+        "key": "logsPath",
+        "title": "CK3 script_docs/logs path",
+        "type": "string",
+        "default": ""
+      },
+      {
+        "key": "locLanguage",
+        "title": "Localization language",
+        "type": "select",
+        "default": "simp_chinese",
+        "enum": [
+          { "label": "Simplified Chinese", "value": "simp_chinese" },
+          { "label": "English", "value": "english" }
+        ]
+      }
+    ]
+  },
+  "permissions": ["ui.view", "agent.tool.register", "agent.prompt.inject"],
+  "engines": { "piDesktop": ">=0.9.0" },
+  "activationEvents": ["onStartup"]
+}

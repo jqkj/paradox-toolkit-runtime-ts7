@@ -12,6 +12,7 @@ export function defaultSettings(): ParadoxSettings {
     locLanguage: "english",
     scopeInlayHints: false,
     indexAssets: true,
+    indexExcludeDirectories: [],
     hoverDetail: "standard",
     completionMode: "minimal",
     diagnosticsIgnore: [],
@@ -40,6 +41,18 @@ export function readSettings(value: unknown): Partial<ParadoxSettings> | undefin
       case "gameId":
       case "locLanguage":
         valid = typeof field === "string";
+        break;
+      case "indexExcludeDirectories":
+        valid =
+          Array.isArray(field) &&
+          field.every(
+            (item) =>
+              typeof item === "string" &&
+              item.length > 0 &&
+              item !== "." &&
+              item !== ".." &&
+              !/[\\/]/.test(item)
+          );
         break;
       case "parentPaths":
       case "workspaceMods":

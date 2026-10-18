@@ -19,6 +19,7 @@ concurrency:
 
 jobs:
   release:
+    if: github.repository == 'JDeffner/paradox-modding-toolkit'
     runs-on: ubuntu-latest
     permissions:
       contents: write # attach artifacts and finalize the existing release

@@ -1,3 +1,17 @@
+# Toolkit 运行时加速与 TS7 开发检查适配
+
+这是基于 [Joël Deffner 的 Paradox Modding Toolkit](https://github.com/JDeffner/paradox-modding-toolkit)
+0.5.5 的第三方适配版，保留 GPL-3.0-or-later 许可证和原作者署名。
+
+- **查询运行时**：引用预筛、目录排除、外部编辑后的索引刷新。
+- **开发检查**：`pnpm run typecheck:ts7` 使用 TS7；TS5 继续服务现有 lint/兼容检查。
+- **接入**：提供独立 MCP 桥接和 PI-Desktop 插件构建件。
+
+先看 [安装与发布流程](packages/bridge/README.md) 和 [适配版验证范围](docs/release/runtime-0.5.5-runtime.1.md)。
+下面保留的是上游产品说明；其中 Marketplace/npm 链接指向上游发行版，不含本适配改动。
+
+---
+
 <div align="center">
 
 <img src=".github/assets/github-banner.png" alt="Paradox Modding Toolkit" width="1200">

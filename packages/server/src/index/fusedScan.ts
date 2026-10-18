@@ -38,6 +38,7 @@ const BATCH = 150;
 
 export interface FusedScanDeps {
   schema: SchemaData;
+  includePath?: (file: string) => boolean;
   source: DefSource;
   locLanguage: string;
   /** Engine-token filter handed to reference extraction (see extractReferences). */
@@ -90,7 +91,7 @@ export async function scanModRootFused(root: string, deps: FusedScanDeps): Promi
   const scriptRoots = entries
     .filter((entry) => (entry.ext ?? ".txt") === ".txt")
     .map((entry) => path.join(root, entry.path));
-  for (const file of iterFilesInRoots([...scriptRoots, root], ".txt")) {
+  for (const file of iterFilesInRoots([...scriptRoots, root], ".txt", deps.includePath)) {
     if (file === null) {
       if (deps.superseded()) return null;
       await deps.yieldNow();
@@ -108,7 +109,7 @@ export async function scanModRootFused(root: string, deps: FusedScanDeps): Promi
     if (ext === ".txt") continue;
     const dir = path.join(root, ...entry.path.split("/"));
     let files: string[] = [];
-    for (const file of iterFiles(dir, ext)) {
+    for (const file of iterFiles(dir, ext, deps.includePath)) {
       if (file === null) {
         if (deps.superseded()) return null;
         await deps.yieldNow();

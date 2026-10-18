@@ -1,0 +1,16 @@
+{
+  "name": "px-runtime-bridge",
+  "version": "0.5.5-runtime.1",
+  "private": true,
+  "type": "commonjs",
+  "license": "GPL-3.0-or-later",
+  "scripts": {
+    "build": "node build.mjs",
+    "test": "node --test test/*.test.cjs"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.18.2",
+    "vscode-jsonrpc": "^8.2.1",
+    "vscode-uri": "^3.1.0"
+  }
+}

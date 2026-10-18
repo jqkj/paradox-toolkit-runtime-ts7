@@ -1,0 +1,552 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Paradox GUI Preview</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        --bg: #0b0f16;
+        --panel: #111824;
+        --panel2: #151e2c;
+        --line: #26344b;
+        --text: #dce5f4;
+        --muted: #8fa2bf;
+        --accent: #73d4ff;
+        --gold: #d7ad65;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        height: 100dvh;
+        overflow: hidden;
+        background: var(--bg);
+        color: var(--text);
+        font:
+          12px/1.4 Inter,
+          Segoe UI,
+          system-ui,
+          sans-serif;
+      }
+      button,
+      input,
+      select {
+        font: inherit;
+        color: inherit;
+      }
+      .shell {
+        height: 100%;
+        display: grid;
+        grid-template-rows: auto 1fr;
+      }
+      .top {
+        display: grid;
+        grid-template-columns: auto minmax(200px, 1fr) auto auto auto;
+        gap: 8px;
+        align-items: center;
+        padding: 8px 10px;
+        border-bottom: 1px solid var(--line);
+        background: #101722;
+      }
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-weight: 700;
+        white-space: nowrap;
+      }
+      .dot {
+        width: 9px;
+        height: 9px;
+        border-radius: 50%;
+        background: #66758b;
+        box-shadow: 0 0 0 3px #66758b22;
+      }
+      .dot.ready {
+        background: #55d98b;
+        box-shadow: 0 0 0 3px #55d98b22;
+      }
+      .dot.busy {
+        background: #f0bd5b;
+        animation: pulse 1s infinite alternate;
+      }
+      .dot.error {
+        background: #ff6b7b;
+      }
+      @keyframes pulse {
+        to {
+          opacity: 0.45;
+        }
+      }
+      select,
+      input {
+        min-width: 0;
+        width: 100%;
+        border: 1px solid var(--line);
+        border-radius: 7px;
+        background: #0d1420;
+        padding: 6px 8px;
+        outline: none;
+      }
+      select:focus,
+      input:focus {
+        border-color: #4b7daf;
+      }
+      button {
+        border: 1px solid var(--line);
+        background: #172234;
+        border-radius: 7px;
+        padding: 6px 9px;
+        cursor: pointer;
+        white-space: nowrap;
+      }
+      button:hover {
+        border-color: #4b7daf;
+        background: #1b2a40;
+      }
+      button:disabled {
+        opacity: 0.45;
+        cursor: default;
+      }
+      .body {
+        min-height: 0;
+        display: grid;
+        grid-template-columns: 245px 1fr 280px;
+      }
+      .side {
+        min-width: 0;
+        overflow: auto;
+        background: var(--panel);
+        border-right: 1px solid var(--line);
+      }
+      .right {
+        border-right: 0;
+        border-left: 1px solid var(--line);
+      }
+      .section {
+        padding: 10px;
+        border-bottom: 1px solid var(--line);
+      }
+      .section h3 {
+        margin: 0 0 8px;
+        font-size: 11px;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--muted);
+      }
+      .canvas-wrap {
+        position: relative;
+        overflow: auto;
+        background-color: #0a0e15;
+        background-image:
+          linear-gradient(#ffffff08 1px, transparent 1px),
+          linear-gradient(90deg, #ffffff08 1px, transparent 1px);
+        background-size: 20px 20px;
+      }
+      #canvas {
+        display: block;
+        min-width: 100%;
+        min-height: 100%;
+      }
+      .node rect {
+        stroke: #6f8cb9;
+        stroke-width: 1;
+        vector-effect: non-scaling-stroke;
+        cursor: pointer;
+      }
+      .node:hover rect {
+        stroke: var(--accent);
+        stroke-width: 2;
+      }
+      .node.selected rect {
+        stroke: #fff;
+        stroke-width: 2.5;
+        filter: drop-shadow(0 0 4px #73d4ff);
+      }
+      .node.root rect {
+        stroke: var(--gold);
+      }
+      .node text {
+        fill: #e6eefb;
+        pointer-events: none;
+        paint-order: stroke;
+        stroke: #000b;
+        stroke-width: 2px;
+        stroke-linejoin: round;
+      }
+      .tree {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+      }
+      .tree li {
+        margin: 1px 0;
+      }
+      .tree button {
+        width: 100%;
+        text-align: left;
+        border: 0;
+        background: transparent;
+        padding: 4px 6px;
+        border-radius: 5px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .tree button:hover,
+      .tree button.sel {
+        background: #22324a;
+      }
+      .indent {
+        display: inline-block;
+        width: calc(var(--d) * 12px);
+      }
+      .kind {
+        color: #93a8c7;
+      }
+      .name {
+        color: #f0c77e;
+        margin-left: 5px;
+      }
+      .kv {
+        display: grid;
+        grid-template-columns: 80px 1fr;
+        gap: 5px 8px;
+      }
+      .kv dt {
+        color: var(--muted);
+      }
+      .kv dd {
+        margin: 0;
+        overflow-wrap: anywhere;
+      }
+      .pill {
+        display: inline-block;
+        padding: 2px 6px;
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        background: #182437;
+        margin: 2px 3px 2px 0;
+        color: #b9c8df;
+      }
+      .empty {
+        color: var(--muted);
+        padding: 10px;
+      }
+      .error {
+        color: #ff93a0;
+        white-space: pre-wrap;
+      }
+      .statusline {
+        color: var(--muted);
+        font-size: 11px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .checks label {
+        display: flex;
+        gap: 6px;
+        align-items: center;
+        padding: 3px 0;
+      }
+      .checks input {
+        width: auto;
+      }
+      .json {
+        white-space: pre-wrap;
+        overflow-wrap: anywhere;
+        color: #afc2df;
+        font:
+          11px/1.45 ui-monospace,
+          Consolas,
+          monospace;
+      }
+      @media (max-width: 900px) {
+        .body {
+          grid-template-columns: 190px 1fr;
+        }
+        .right {
+          display: none;
+        }
+        .top {
+          grid-template-columns: auto 1fr auto;
+        }
+        .top .secondary {
+          display: none;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="shell">
+      <header class="top">
+        <div class="brand"><span id="statusDot" class="dot"></span><span>Paradox GUI</span></div>
+        <select id="fileSelect">
+          <option value="">选择 .gui 文件…</option>
+        </select>
+        <select id="visibility" class="secondary">
+          <option value="showAll">显示条件控件</option>
+          <option value="hideAll">隐藏条件控件</option>
+          <option value="evaluate">按开关判断</option>
+        </select>
+        <button id="refresh">刷新</button>
+        <button id="fit" class="secondary">适应</button>
+      </header>
+      <main class="body">
+        <aside class="side">
+          <div class="section">
+            <h3>状态</h3>
+            <div id="status" class="statusline">连接中…</div>
+          </div>
+          <div class="section">
+            <h3>控件树</h3>
+            <div id="tree" class="empty">先选择文件</div>
+          </div>
+        </aside>
+        <section id="canvasWrap" class="canvas-wrap">
+          <svg id="canvas" xmlns="http://www.w3.org/2000/svg"></svg>
+        </section>
+        <aside class="side right">
+          <div class="section">
+            <h3>选中控件</h3>
+            <div id="inspect" class="empty">点击预览或控件树</div>
+          </div>
+          <div class="section">
+            <h3>可见性</h3>
+            <div id="checks" class="checks empty">没有条件表达式</div>
+          </div>
+          <div class="section">
+            <h3>依赖</h3>
+            <button id="deps" disabled>读取控件依赖</button>
+            <div id="dependency" class="json"></div>
+          </div>
+        </aside>
+      </main>
+    </div>
+    <script>
+      const $ = (id) => document.getElementById(id);
+      const state = { root: null, file: null, layout: null, flat: [], selected: -1, checks: {}, scale: 1 };
+      const bridge = window.pluginBridge;
+      const invoke = async (channel, payload = {}) => {
+        if (!bridge?.invoke) throw new Error("pluginBridge 不可用");
+        const result = await bridge.invoke(channel, payload);
+        if (!result?.ok) throw new Error(result?.message || result?.code || "请求失败");
+        return result;
+      };
+      const esc = (value) =>
+        String(value ?? "").replace(
+          /[&<>"']/g,
+          (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]
+        );
+      const rgba = (c, f = "rgba(65,80,105,.3)") =>
+        Array.isArray(c)
+          ? `rgba(${Math.round(c[0] * 255)},${Math.round(c[1] * 255)},${Math.round(c[2] * 255)},${Math.max(0, Math.min(1, c[3]))})`
+          : f;
+      function flatten(nodes, depth = 0, parent = -1, out = []) {
+        for (const n of nodes || []) {
+          const i = out.length;
+          out.push({ ...n, depth, parent });
+          flatten(n.children, depth + 1, i, out);
+        }
+        return out;
+      }
+      function updateStatus(status) {
+        const s = status?.status || {};
+        const stats = status?.stats || {};
+        const dot = $("statusDot");
+        dot.className = "dot " + (s.indexing ? "busy" : status?.running ? "ready" : "error");
+        const defs = s.definitions ?? stats.total ?? "?";
+        $("status").textContent =
+          `${s.indexing ? "索引中" : "就绪"} · ${defs} definitions · ${status?.serverInfo?.version || ""}`;
+      }
+      function fillFiles(files) {
+        const sel = $("fileSelect");
+        sel.innerHTML =
+          '<option value="">选择 .gui 文件…</option>' +
+          files.map((f) => `<option value="${esc(f.file)}">${esc(f.relative)}</option>`).join("");
+      }
+      function renderTree() {
+        if (!state.flat.length) {
+          $("tree").className = "empty";
+          $("tree").textContent = "此文件没有可布局控件";
+          return;
+        }
+        $("tree").className = "";
+        $("tree").innerHTML =
+          '<ul class="tree">' +
+          state.flat
+            .map(
+              (n, i) =>
+                `<li><button data-i="${i}" class="${i === state.selected ? "sel" : ""}" title="line ${n.line === undefined ? "derived" : n.line + 1}"><span class="indent" style="--d:${n.depth}"></span><span class="kind">${esc(n.key)}</span>${n.name ? `<span class="name">${esc(n.name)}</span>` : ""}</button></li>`
+            )
+            .join("") +
+          "</ul>";
+        $("tree")
+          .querySelectorAll("button")
+          .forEach((b) => (b.onclick = () => select(Number(b.dataset.i))));
+      }
+      function bounds(flat) {
+        return flat.reduce(
+          (a, n) => {
+            const r = n.rect || {};
+            a.x = Math.min(a.x, +r.x || 0);
+            a.y = Math.min(a.y, +r.y || 0);
+            a.X = Math.max(a.X, (+r.x || 0) + (+r.w || 0));
+            a.Y = Math.max(a.Y, (+r.y || 0) + (+r.h || 0));
+            return a;
+          },
+          { x: 0, y: 0, X: 1280, Y: 720 }
+        );
+      }
+      function renderCanvas() {
+        const svg = $("canvas"),
+          b = bounds(state.flat),
+          w = Math.max(100, b.X - b.x),
+          h = Math.max(100, b.Y - b.y);
+        svg.setAttribute("viewBox", `${b.x} ${b.y} ${w} ${h}`);
+        svg.setAttribute("width", w);
+        svg.setAttribute("height", h);
+        svg.innerHTML = state.flat
+          .map((n, i) => {
+            const r = n.rect || {},
+              fill = n.fill || n.bg || {},
+              label = n.text?.text || n.name || n.key;
+            return `<g class="node ${n.depth === 0 ? "root" : ""} ${i === state.selected ? "selected" : ""}" data-i="${i}"><rect x="${r.x || 0}" y="${r.y || 0}" width="${Math.max(1, r.w || 0)}" height="${Math.max(1, r.h || 0)}" rx="1" fill="${rgba(fill.color, n.ghost ? "rgba(125,98,160,.2)" : "rgba(65,80,105,.3)")}" opacity="${n.ghost ? 0.5 : 1}"/><text x="${(+r.x || 0) + 4}" y="${(+r.y || 0) + Math.max(11, Math.min(20, n.text?.fontsize || 11))}" font-size="${Math.max(8, Math.min(20, n.text?.fontsize || 11))}">${esc(label)}</text></g>`;
+          })
+          .join("");
+        svg.querySelectorAll(".node").forEach(
+          (g) =>
+            (g.onclick = (e) => {
+              e.stopPropagation();
+              select(Number(g.dataset.i));
+            })
+        );
+      }
+      function renderChecks() {
+        const rows = state.layout?.visibilityChecks || [];
+        if (!rows.length) {
+          $("checks").className = "checks empty";
+          $("checks").textContent = "没有条件表达式";
+          return;
+        }
+        $("checks").className = "checks";
+        $("checks").innerHTML = rows
+          .map(
+            (r) =>
+              `<label title="${esc(r.key)}"><input type="checkbox" data-key="${esc(r.key)}" ${state.checks[r.key] !== false ? "checked" : ""}><span>${esc(r.key)} (${r.count})</span></label>`
+          )
+          .join("");
+        $("checks")
+          .querySelectorAll("input")
+          .forEach(
+            (x) =>
+              (x.onchange = () => {
+                state.checks[x.dataset.key] = x.checked;
+                if ($("visibility").value === "evaluate") loadLayout();
+              })
+          );
+      }
+      async function select(i) {
+        state.selected = i;
+        renderTree();
+        renderCanvas();
+        $("dependency").textContent = "";
+        const n = state.flat[i];
+        $("deps").disabled = !n || n.line === undefined;
+        if (!n) {
+          $("inspect").className = "empty";
+          $("inspect").textContent = "点击预览或控件树";
+          return;
+        }
+        $("inspect").className = "";
+        $("inspect").innerHTML =
+          `<dl class="kv"><dt>类型</dt><dd>${esc(n.key)}</dd><dt>名称</dt><dd>${esc(n.name || "—")}</dd><dt>源码行</dt><dd>${n.line === undefined ? "派生" : n.line + 1}</dd><dt>矩形</dt><dd>${n.rect.x}, ${n.rect.y} · ${n.rect.w}×${n.rect.h}</dd><dt>可编辑</dt><dd>${n.editable ? "是" : "否"}</dd><dt>定位</dt><dd>${n.positioned ? "锚点/坐标" : "布局容器"}</dd><dt>纹理</dt><dd>${esc(n.fill?.texture || n.bg?.texture || "—")}</dd><dt>文本</dt><dd>${esc(n.text?.text || "—")}</dd></dl>`;
+        if (n.line !== undefined) {
+          try {
+            const r = await invoke("px.gui.info", { file: state.file, line: n.line });
+            const p = r.result?.properties || [];
+            $("inspect").insertAdjacentHTML(
+              "beforeend",
+              '<h3 style="margin-top:12px">有效属性</h3>' +
+                p
+                  .slice(0, 40)
+                  .map((x) => `<span class="pill" title="${esc(x.value)}">${esc(x.key)}</span>`)
+                  .join("")
+            );
+          } catch (e) {
+            $("inspect").insertAdjacentHTML("beforeend", `<div class="error">${esc(e.message)}</div>`);
+          }
+        }
+      }
+      async function loadLayout() {
+        if (!state.file) return;
+        const btn = $("refresh");
+        btn.disabled = true;
+        $("status").textContent = "布局计算中…";
+        try {
+          const r = await invoke("px.gui.layout", {
+            file: state.file,
+            visibilityMode: $("visibility").value,
+            visibilityChecks: state.checks,
+            loc: "resolve",
+          });
+          state.layout = r.result;
+          state.flat = flatten(r.result.nodes);
+          state.selected = -1;
+          renderTree();
+          renderCanvas();
+          renderChecks();
+          $("status").textContent =
+            `${r.result.nodeCount} widgets · ${r.result.defsFiles} defs files · ${r.result.timings?.totalMs ?? "?"} ms`;
+        } catch (e) {
+          $("status").innerHTML = `<span class="error">${esc(e.message)}</span>`;
+          state.flat = [];
+          renderTree();
+          renderCanvas();
+        } finally {
+          btn.disabled = false;
+        }
+      }
+      $("fileSelect").onchange = () => {
+        state.file = $("fileSelect").value || null;
+        loadLayout();
+      };
+      $("refresh").onclick = loadLayout;
+      $("visibility").onchange = loadLayout;
+      $("fit").onclick = () => {
+        $("canvasWrap").scrollTo({ top: 0, left: 0, behavior: "smooth" });
+      };
+      $("deps").onclick = async () => {
+        const n = state.flat[state.selected];
+        if (!n || n.line === undefined) return;
+        $("dependency").textContent = "读取中…";
+        try {
+          const r = await invoke("px.gui.dependencies", { file: state.file, line: n.line });
+          $("dependency").textContent = JSON.stringify(r.result, null, 2);
+        } catch (e) {
+          $("dependency").textContent = e.message;
+        }
+      };
+      async function boot() {
+        try {
+          const hello = await invoke("px.hello");
+          state.root = hello.root;
+          fillFiles(hello.files || []);
+          updateStatus(hello.status);
+          if ((hello.files || []).length === 1) {
+            $("fileSelect").value = hello.files[0].file;
+            state.file = hello.files[0].file;
+            loadLayout();
+          }
+        } catch (e) {
+          $("statusDot").className = "dot error";
+          $("status").innerHTML = `<span class="error">${esc(e.message)}</span>`;
+        }
+      }
+      boot();
+    </script>
+  </body>
+</html>

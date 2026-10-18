@@ -1,3 +1,4 @@
+import { watchRootsNotification, type WatchRootsParams } from "@px-lsp/protocol/protocol";
 /**
  * Language server entry point: owns the script_docs token data and the
  * definition index, and answers completion/hover/definition/semantic-token/
@@ -166,6 +167,7 @@ import { internedCount, resetInternTable } from "./index/intern";
 import { extractDefinitions } from "./index/extract";
 import { extractReferences } from "./index/references";
 import { scanModRootFused } from "./index/fusedScan";
+import { createIndexPathPolicy } from "./index/pathPolicy";
 import { LazyReferenceScanner, type LazyRefRoot } from "./index/lazyRefs";
 import { ModOriginResolver } from "./index/modOrigin";
 import { loadSchema, type SchemaData } from "./schema/loader";
@@ -350,14 +352,30 @@ function refreshModOrigin(): void {
 /** On-demand reference search over the roots buildIndex leaves out of the
  * ReferenceIndex: read-only dependency parents and vanilla (#3, AD-4). */
 const lazyRefs = new LazyReferenceScanner();
+let includeIndexPath: (file: string) => boolean = () => true;
 
 function refreshLazyRefs(): void {
+  includeIndexPath = createIndexPathPolicy(
+    [...(settings.modPath ? [settings.modPath] : []), ...workspaceModRoots(), ...parentRoots()],
+    settings.indexExcludeDirectories ?? []
+  );
   const roots: LazyRefRoot[] = dependencyParentRoots().map((root) => ({
     root,
     source: "parent" as const,
   }));
   if (settings.gamePath) roots.push({ root: settings.gamePath, source: "vanilla" });
-  lazyRefs.setRoots(roots, isEngineToken, settings.indexAssets !== false, schema);
+  lazyRefs.setRoots(roots, isEngineToken, settings.indexAssets !== false, schema, includeIndexPath);
+  if (clientOwnFileWatcher) {
+    const modRoots = [
+      ...new Set([...(settings.modPath ? [settings.modPath] : []), ...workspaceModRoots(), ...parentRoots()]),
+    ];
+    const watch: WatchRootsParams = {
+      roots: [...modRoots, ...(settings.gamePath ? [settings.gamePath] : [])],
+      modRoots,
+      excludeDirectories: settings.indexExcludeDirectories ?? [],
+    };
+    void connection.sendNotification(watchRootsNotification, watch);
+  }
 }
 
 /** Bundled frequency tables: completion ranks with them, the Examples Wiki
@@ -1103,7 +1121,11 @@ async function scanRootChunked(
     // completion first, and for its whole duration the server answered no
     // request: completion and hover stalled behind it.
     let files: string[] = [];
-    for (const file of iterFiles(dir, entry.ext ?? ".txt")) {
+    for (const file of iterFiles(
+      dir,
+      entry.ext ?? ".txt",
+      source === "vanilla" ? undefined : includeIndexPath
+    )) {
       if (file === null) {
         if (generation !== scanGeneration) return null; // superseded
         await yieldNow();
@@ -1157,6 +1179,7 @@ async function scanModRootBoth(root: string, generation: number): Promise<number
   const t0 = Date.now();
   const result = await scanModRootFused(root, {
     schema: indexSchema,
+    includePath: includeIndexPath,
     // Both callers are workspace mods; dependency parents never reach here.
     source: "mod",
     locLanguage: settings.locLanguage,
@@ -1398,6 +1421,8 @@ function contentDigest(content: string | null): string {
 }
 
 function rescanModFile(fsPath: string): void {
+  // 打开文件仍可查看诊断，但不能把已排除资料重新加入全局索引。
+  if (!includeIndexPath(fsPath)) return;
   // URI decoding lowercases Windows drive letters. Preserve the spelling
   // already published by the disk index for consumers that retain source paths.
   fsPath = data.index.inFile(fsPath)[0]?.file ?? fsPath;
@@ -1635,7 +1660,9 @@ function applySettings(incoming: Partial<ParadoxSettings>, replace: boolean): vo
     newSettings.modPath !== settings.modPath ||
     JSON.stringify(newSettings.parentPaths ?? []) !== JSON.stringify(settings.parentPaths ?? []) ||
     JSON.stringify(newSettings.workspaceMods ?? []) !== JSON.stringify(settings.workspaceMods ?? []) ||
-    newSettings.locLanguage !== settings.locLanguage;
+    newSettings.locLanguage !== settings.locLanguage ||
+    JSON.stringify(newSettings.indexExcludeDirectories ?? []) !==
+      JSON.stringify(settings.indexExcludeDirectories ?? []);
   const diagChanged =
     JSON.stringify(newSettings.diagnosticsIgnore) !== JSON.stringify(settings.diagnosticsIgnore) ||
     JSON.stringify(newSettings.diagnosticsIgnorePatterns) !==
@@ -1702,6 +1729,7 @@ let pendingConfigChange: ReturnType<typeof setTimeout> | undefined;
 const pendingModChanges = new Map<string, { fsPath: string; timer: ReturnType<typeof setTimeout> }>();
 
 function handleModFileChange(fsPath: string): void {
+  if (!includeIndexPath(fsPath)) return;
   lazyRefs.invalidateFile(fsPath);
   perf(`modFileChanged ${perfName(fsPath)}`);
   const roots = [...(settings.modPath ? [settings.modPath] : []), ...workspaceModRoots()];

@@ -1,0 +1,73 @@
+name: Runtime adaptation
+
+on:
+  push:
+    branches: ["chore/ts7-evaluation", "feat/**", "fix/**"]
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      publish:
+        description: "Create a GitHub prerelease from this exact commit after checks pass"
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4.3.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.19.0
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm run typecheck
+      - run: pnpm run typecheck:ts7
+      - run: pnpm run lint
+      - run: node scripts/check-game-boundary.mjs
+      - run: pnpm --filter px-runtime-bridge run build
+      - run: pnpm exec vitest run packages/server/test/runtimeIndexPolicy.test.ts packages/server/test/lspSmoke.test.ts packages/server/test/lazyRefs.test.ts packages/server/test/fusedScan.test.ts packages/protocol/test/fsWalk.test.ts
+      - run: pnpm --filter px-runtime-bridge test
+      - run: node scripts/package-runtime-adaptation.mjs
+      - uses: actions/upload-artifact@v4
+        with:
+          name: runtime-${{ runner.os }}
+          path: dist/runtime-release/*
+          if-no-files-found: error
+
+  publish:
+    if: github.event_name == 'workflow_dispatch' && inputs.publish
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: runtime-*
+          merge-multiple: true
+          path: release-artifacts
+      - name: Publish this verified commit as a prerelease
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          version=$(node -p "require('./packages/bridge/package.json').version")
+          tag="runtime-v${version}"
+          if git ls-remote --exit-code --tags origin "refs/tags/$tag"; then
+            echo "Tag already exists; increment the adaptation version."
+            exit 1
+          fi
+          gh release create "$tag" release-artifacts/* \
+            --target "$GITHUB_SHA" --prerelease --latest=false \
+            --title "Toolkit runtime / TS7 adaptation $version" \
+            --notes-file "docs/release/runtime-${version}.md"

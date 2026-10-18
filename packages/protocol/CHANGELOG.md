@@ -6,6 +6,10 @@ the shared helpers change. Before the split it moved inside the extension's
 version (up to 0.3.2); that history is in the extension changelog
 (`packages/vscode/CHANGELOG.md`).
 
+## Unreleased
+
+- Add optional `indexExcludeDirectories`, an optional path predicate for streaming file walks, and the additive `paradox/watchRoots` notification for clients owning file watchers.
+
 ## 0.2.8 (upcoming)
 
 Prepared for Toolkit 0.6.0, first available in the 0.5.5 prerelease. This section includes the unpublished 0.2.7 draft; the protocol keeps its independent version.

@@ -67,6 +67,8 @@ import {
   type SnippetCatalogueResult,
   type SnippetsResult,
   statusNotification,
+  watchRootsNotification,
+  type WatchRootsParams,
   type DependenciesResult,
   type GuiDependenciesResult,
   type GuiSourceEditResult,
@@ -75,6 +77,44 @@ import {
   type ScopeAtResult,
   type StatusPayload,
 } from "@px-lsp/protocol/protocol";
+
+// 验证真实打包服务会向负责监听的宿主报告最终根目录与排除策略。
+it("reports resolved watch roots to an owning client", async () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "px-watch-roots-"));
+  const child = fork(path.join(__dirname, "..", "dist", "server.js"), ["--node-ipc"], {
+    stdio: ["ignore", "pipe", "pipe", "ipc"],
+    silent: true,
+  });
+  const conn = createMessageConnection(new IPCMessageReader(child), new IPCMessageWriter(child));
+  const payloads: WatchRootsParams[] = [];
+  conn.onNotification(watchRootsNotification, (payload: WatchRootsParams) => {
+    payloads.push(payload);
+  });
+  conn.onNotification(() => undefined);
+  conn.listen();
+  try {
+    await conn.sendRequest("initialize", {
+      processId: process.pid,
+      capabilities: {},
+      initializationOptions: {
+        storageDir: path.join(root, ".cache"),
+        client: { ownFileWatcher: true },
+        settings: { modPath: root, gamePath: null, logsPath: null, indexExcludeDirectories: ["test"] },
+      },
+    });
+    await conn.sendNotification("initialized", {});
+    await expect.poll(() => payloads.length, { timeout: 10000 }).toBeGreaterThan(0);
+    expect(payloads.at(-1)).toEqual({ roots: [root], modRoots: [root], excludeDirectories: ["test"] });
+    await conn.sendNotification(configChangedNotification, { indexExcludeDirectories: [] });
+    await expect.poll(() => payloads.at(-1)?.excludeDirectories, { timeout: 10000 }).toEqual([]);
+  } finally {
+    await conn.sendRequest("shutdown");
+    await conn.sendNotification("exit");
+    conn.dispose();
+    child.kill();
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+}, 30000);
 
 /** Apply a guiSourceEdit batch the way a host would: end-first, same text. */
 function applyEdits(text: string, edits: GuiTextEdit[]): string {

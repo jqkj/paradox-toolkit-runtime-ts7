@@ -63,7 +63,8 @@ if (invokedDirectly) {
     for (const name of apps) {
       // typescript's own entry point, so the script works without
       // node_modules/.bin on PATH (i.e. when run directly, not via pnpm).
-      const tsc = join(root, "node_modules", "typescript", "bin", "tsc");
+      const compiler = process.argv.includes("--typescript7") ? "@typescript/native" : "typescript";
+      const tsc = join(root, "node_modules", compiler, "bin", "tsc");
       const result = spawnSync(process.execPath, [tsc, "-p", join(webviewsDir, name, "app")], {
         stdio: "inherit",
       });

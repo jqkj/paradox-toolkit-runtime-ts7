@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+- Add an opt-in TS7 development check and a portable MCP/PI runtime adaptation build with an independent GitHub prerelease workflow.
+- Improve the standalone server runtime with bounded lazy-reference token filtering, consistent directory exclusions, and resolved watcher-root notifications for embedding clients.
+
 ## 0.6.0 (upcoming; preview 0.5.5)
 
 Toolkit 0.5.5 is the opt-in prerelease of the upcoming 0.6.0 update. These changes cover all work since the published 0.5.0 release, including the unpublished 0.5.2 draft. Compatch features remain experimental and off by default.

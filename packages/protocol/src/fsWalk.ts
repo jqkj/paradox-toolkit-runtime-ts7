@@ -22,17 +22,26 @@ export const WALK_TICK = 500;
  * readdirSync per directory, so a caller handed only paths would have nothing
  * to pace itself against and would block for the whole traversal.
  */
-export function* iterFiles(dir: string, ext: string): Generator<string | null> {
-  yield* iterFilesInRoots([dir], ext);
+export function* iterFiles(
+  dir: string,
+  ext: string,
+  include?: (file: string) => boolean
+): Generator<string | null> {
+  yield* iterFilesInRoots([dir], ext, include);
 }
 
 /** Visit roots in priority order, sharing canonical-directory deduplication.
  * A caller can put semantic folders before a containing fallback root so an
  * alias that supplies the folder's meaning keeps its logical path. */
-export function* iterFilesInRoots(dirs: readonly string[], ext: string): Generator<string | null> {
+export function* iterFilesInRoots(
+  dirs: readonly string[],
+  ext: string,
+  include?: (file: string) => boolean
+): Generator<string | null> {
   const visited = new Set<string>();
   const tick = { count: 0 };
   for (const dir of dirs) {
+    if (include && !include(dir)) continue;
     let real: string;
     try {
       real = fs.realpathSync(dir);
@@ -43,12 +52,12 @@ export function* iterFilesInRoots(dirs: readonly string[], ext: string): Generat
     // Within each root, ordinary paths win over aliases. Deferred links then
     // use sorted DFS encounter order, so sibling aliases have a stable winner.
     // Keep dir as the logical root, even when the configured root is itself a link.
-    yield* walk(dir, real, ext, visited, tick, links);
+    yield* walk(dir, real, ext, visited, tick, links, include);
     for (let i = 0; i < links.length; i++) {
       // Resolving a long deferred-link queue also does filesystem work, even if
       // every target was already visited and contributes no directory entries.
       if (++tick.count % WALK_TICK === 0) yield null;
-      yield* followLink(links[i].full, links[i].host, ext, visited, tick, links);
+      yield* followLink(links[i].full, links[i].host, ext, visited, tick, links, include);
     }
   }
 }
@@ -72,8 +81,10 @@ function* walk(
   ext: string,
   visited: Set<string>,
   tick: { count: number },
-  links: Array<{ full: string; host: string }>
+  links: Array<{ full: string; host: string }>,
+  include?: (file: string) => boolean
 ): Generator<string | null> {
+  if (include && !include(dir)) return;
   const key = norm(real);
   if (visited.has(key)) return;
   visited.add(key);
@@ -90,8 +101,10 @@ function* walk(
     if (entry.name.startsWith(".")) continue;
     if (++tick.count % WALK_TICK === 0) yield null;
     const full = path.join(dir, entry.name);
+    if (include && !include(full)) continue;
     // An ordinary child of a canonical directory needs no additional realpath.
-    if (entry.isDirectory()) yield* walk(full, path.join(real, entry.name), ext, visited, tick, links);
+    if (entry.isDirectory())
+      yield* walk(full, path.join(real, entry.name), ext, visited, tick, links, include);
     else if (entry.isFile()) {
       if (entry.name.toLowerCase().endsWith(ext)) yield full;
     } else if (entry.isSymbolicLink()) links.push({ full, host: real });
@@ -128,8 +141,10 @@ function* followLink(
   ext: string,
   visited: Set<string>,
   tick: { count: number },
-  links: Array<{ full: string; host: string }>
+  links: Array<{ full: string; host: string }>,
+  include?: (file: string) => boolean
 ): Generator<string | null> {
+  if (include && !include(full)) return;
   let target: fs.Stats;
   let real: string;
   try {
@@ -145,5 +160,5 @@ function* followLink(
   if (!target.isDirectory()) return;
 
   if (isSameOrBelow(real, host)) return; // points back into the tree being walked
-  yield* walk(full, real, ext, visited, tick, links);
+  yield* walk(full, real, ext, visited, tick, links, include);
 }

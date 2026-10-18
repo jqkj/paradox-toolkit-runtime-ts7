@@ -10,6 +10,7 @@ concurrency:
 
 jobs:
   prepare:
+    if: github.repository == 'JDeffner/paradox-modding-toolkit'
     runs-on: ubuntu-latest
     permissions:
       contents: write

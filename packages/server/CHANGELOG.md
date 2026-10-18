@@ -6,6 +6,10 @@ changes. Before the split it moved inside the extension's version (up to
 0.3.2); that history is in the extension changelog
 (`packages/vscode/CHANGELOG.md`).
 
+## Unreleased
+
+- Bound lazy-reference token filters to the file/root invalidation lifecycle. Apply configurable mod-directory exclusions to initial scans and incremental updates, and report resolved watch roots to clients owning their file watcher.
+
 ## 0.3.8 (upcoming)
 
 Prepared for Toolkit 0.6.0, first available in the 0.5.5 prerelease. This section includes the unpublished 0.3.7 draft; the server keeps its independent version.

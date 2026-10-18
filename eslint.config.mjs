@@ -63,8 +63,16 @@ export default tseslint.config(
   },
   {
     // Plain-Node build scripts, outside the app tsconfig.
-    files: ["**/*.mjs"],
+    files: ["**/*.mjs", "packages/bridge/**/*.js", "packages/bridge/**/*.cjs"],
     ...tseslint.configs.disableTypeChecked,
+  },
+  {
+    files: ["packages/bridge/**/*.js", "packages/bridge/**/*.cjs"],
+    languageOptions: { globals: { ...globals.node, pi: "readonly" } },
+    rules: {
+      "@typescript-eslint/no-require-imports": "off",
+      "no-empty": ["error", { allowEmptyCatch: true }],
+    },
   },
   {
     // Webview bodies are serialized to the browser as strings; the panel files

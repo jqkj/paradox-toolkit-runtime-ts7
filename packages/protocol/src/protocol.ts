@@ -32,6 +32,8 @@ export interface ParadoxSettings {
   locLanguage: string;
   /** Index .asset definitions and references across all roots. Default true. */
   indexAssets?: boolean;
+  /** Top-level directories omitted from mod and parent indexes; default empty. */
+  indexExcludeDirectories?: string[];
   /** Show inferred scope after scope-changing block openers (off by default). */
   scopeInlayHints: boolean;
   /**
@@ -2224,4 +2226,12 @@ export interface DynastyTreeResult {
   nextCharacterId?: string;
   /** Largest numeric dynasty id across game and mods, plus one. */
   nextDynastyId?: string;
+}
+
+/** Resolved watch roots sent to clients declaring ownFileWatcher. */
+export const watchRootsNotification = "paradox/watchRoots";
+export interface WatchRootsParams {
+  roots: string[];
+  modRoots: string[];
+  excludeDirectories: string[];
 }

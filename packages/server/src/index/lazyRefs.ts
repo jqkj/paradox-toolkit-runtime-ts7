@@ -28,6 +28,7 @@ import { expectedKindsAt } from "../features/symbolResolution";
 import { TextDocument } from "vscode-languageserver-textdocument";
 import { URI } from "vscode-uri";
 import { evictParse } from "../parseCache";
+import { TokenFilter } from "./tokenFilter";
 
 export interface LazyRefRoot {
   root: string;
@@ -50,6 +51,8 @@ const yieldNow = () => new Promise<void>((resolve) => setImmediate(resolve));
 
 export class LazyReferenceScanner {
   private roots: LazyRefRoot[] = [];
+  private tokens = new TokenFilter();
+  private includePath?: (file: string) => boolean;
   private indexAssets = true;
   private isEngineToken?: (name: string) => boolean;
   private fileLists = new Map<string, string[]>();
@@ -62,9 +65,12 @@ export class LazyReferenceScanner {
     roots: LazyRefRoot[],
     isEngineToken?: (name: string) => boolean,
     indexAssets = true,
-    schema: SchemaData = loadSchema(null)
+    schema: SchemaData = loadSchema(null),
+    includePath?: (file: string) => boolean
   ): void {
     this.roots = roots;
+    this.includePath = includePath;
+    this.tokens.clear();
     this.indexAssets = indexAssets;
     this.schema = schema;
     this.generation++;
@@ -74,10 +80,17 @@ export class LazyReferenceScanner {
   }
 
   invalidateFile(file: string): void {
+    this.tokens.invalidate(file);
     for (const { root } of this.roots) {
       const relative = path.relative(root, file);
-      if (relative.startsWith("..") || path.isAbsolute(relative)) continue;
-      this.fileLists.delete(root);
+      if (relative === ".." || relative.startsWith(".." + path.sep) || path.isAbsolute(relative)) continue;
+      // 已知文件仅改内容时保留枚举结果；新增/删除才需要重新遍历目录。
+      const listed = this.fileLists.get(root);
+      const normalized = path.resolve(file);
+      const known = listed?.some((entry) =>
+        process.platform === "win32" ? entry.toLowerCase() === normalized.toLowerCase() : entry === normalized
+      );
+      if (!known || !fs.existsSync(file)) this.fileLists.delete(root);
       this.cache.clear();
       this.generation++;
       break;
@@ -119,13 +132,17 @@ export class LazyReferenceScanner {
         .filter((entry) => (entry.ext ?? ".txt") === ".txt")
         .map((entry) => path.join(root, entry.path));
       files = [];
-      for (const file of iterFilesInRoots([...scriptRoots, root], ".txt")) {
+      for (const file of iterFilesInRoots([...scriptRoots, root], ".txt", this.includePath)) {
         if (file !== null) files.push(file);
       }
       for (const entry of activeProfile().schema) {
         if (!this.indexAssets && entry.ext?.toLowerCase() === ".asset") continue;
         if (entry.extraction === "named-block" && entry.ext && entry.ext !== ".txt") {
-          files.push(...listFiles(path.join(root, entry.path), entry.ext));
+          files.push(
+            ...listFiles(path.join(root, entry.path), entry.ext).filter(
+              (file) => this.includePath?.(file) !== false
+            )
+          );
         }
       }
       this.fileLists.set(root, files);
@@ -140,12 +157,14 @@ export class LazyReferenceScanner {
       const files = this.filesOf(root);
       for (let i = 0; i < files.length; i += BATCH) {
         for (const file of files.slice(i, i + BATCH)) {
+          if (!this.tokens.mayContain(file, name)) continue;
           let content: string;
           try {
             content = fs.readFileSync(file, "utf8");
           } catch {
             continue;
           }
+          this.tokens.add(file, content);
           if (!content.includes(name)) continue;
           const hits: Reference[] = [];
           scanContent(content, name, file, hits);

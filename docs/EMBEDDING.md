@@ -862,3 +862,22 @@ archives with the full texts.
 ### Exporting generated snippets
 
 Call `paradox/snippetCatalogue` with `{}` for the full active-game catalogue, without requiring an open document or applying the cursor picker's cap. The response includes engine templates, definition and child-block skeletons, and effective indexed scripted calls. Every available variant includes snippet syntax, plain insertion text and completion-preview Markdown. An `indexing: true` response has no entries; request again after indexing finishes. VS Code uses this request for `px.exportSnippets`, which saves a self-contained, searchable HTML file with copy and print controls. See the Protocol Reference for the response fields.
+
+
+## Runtime index exclusions and file watching
+
+`ParadoxSettings.indexExcludeDirectories?: string[]` defaults to `[]`. Each entry must be a nonempty top-level directory name, not `.` or `..`, and cannot contain separators. Names apply to workspace and dependency-mod roots, including initial scans, lazy references and incremental updates. They do not exclude vanilla directories. Unknown custom runtime directories remain included. Open-file syntax features remain available for excluded files, but opening one does not insert it into the shared symbol/reference index. A changed list through `paradox/configChanged` triggers a rebuild.
+
+Clients declaring `initializationOptions.client.ownFileWatcher: true` receive the additive server notification `paradox/watchRoots` at index configuration time:
+
+```ts
+interface WatchRootsParams {
+  roots: string[]; // absolute roots, including vanilla and resolved playset parents
+  modRoots: string[]; // roots to which directory exclusions apply
+  excludeDirectories: string[];
+}
+```
+
+Watch these roots and send `paradox/modFileChanged` for changed, created and deleted files (both paths for renames). Synchronize disk-backed open-document buffers too; preserve explicitly unsaved buffers. Update watchers when the payload changes and dispose them on shutdown. Older servers do not send this notification, so embedding clients should watch configured roots until a resolved payload arrives. Existing clients may ignore it and retain their watchers. This notification does not itself install a watcher.
+
+The lazy-reference token filter is bounded session memory. It is cleared by root reconfiguration and invalidated per changed file. Missing or over-budget filters fall through to normal reads. The first scan builds filters while reading; subsequent distinct-name lookups can skip definite negatives. It is not a persistent disk cache and does not change the semantic matcher or the existing result cap.

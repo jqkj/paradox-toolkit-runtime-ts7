@@ -137,6 +137,7 @@ const settings = {
   locLanguage: "english",
   scopeInlayHints: false,
   indexAssets: ws.settings?.["px.indexAssets"] !== false,
+  indexExcludeDirectories: ws.settings?.["px.indexExcludeDirectories"] ?? [],
   diagnosticsIgnore: [],
   diagnosticsIgnorePatterns: [],
   diagnosticsVanilla: false,
