@@ -19,6 +19,21 @@ if (execFileSync("git", ["status", "--porcelain"], { cwd: repoRoot, encoding: "u
   throw new Error("Source archive requires a clean committed tree; commit the reviewed changes first.");
 }
 execFileSync("git", ["archive", "--format=zip", `--output=${source}`, "HEAD"], { cwd: repoRoot });
+const sourceZip = new AdmZip(source);
+sourceZip.addFile(
+  "runtime-source.json",
+  Buffer.from(
+    JSON.stringify(
+      {
+        sourceCommit: execFileSync("git", ["rev-parse", "HEAD"], { cwd: repoRoot, encoding: "utf8" }).trim(),
+        version,
+      },
+      null,
+      2
+    ) + "\n"
+  )
+);
+sourceZip.writeZip(source);
 const files = [archive, source];
 writeFileSync(
   join(output, `SHA256SUMS-${process.platform}.txt`),

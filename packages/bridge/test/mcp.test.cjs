@@ -45,7 +45,9 @@ test(
     transport.stderr?.on("data", (chunk) => {
       stderr += String(chunk);
     });
+    let phase = "connect";
     async function call(name, args = {}) {
+      phase = name;
       const result = await client.callTool({ name, arguments: args });
       assert.ok(!result.isError, JSON.stringify(result));
       return JSON.parse(result.content.find((item) => item.type === "text").text);
@@ -85,6 +87,8 @@ test(
         []
       );
       assert.equal(stderr, "");
+    } catch (error) {
+      throw new Error(`MCP failed during ${phase}; stderr: ${stderr || "(empty)"}`, { cause: error });
     } finally {
       await client.close();
       // 清理范围由 mkdtemp 返回，且先验证它仍属于系统临时目录。

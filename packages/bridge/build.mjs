@@ -1,5 +1,5 @@
 import { build } from "esbuild";
-import { cpSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { cpSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join, dirname, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createHash } from "node:crypto";
@@ -47,13 +47,37 @@ for (const name of ["LICENSE", "THIRD-PARTY-NOTICES.md"]) {
   cpSync(join(repoRoot, name), join(output, name));
 }
 const files = ["mcp-server.cjs", "main.js", "vendor/px-lsp/dist/server.js"];
+// ZIP 没有 .git；也不能把父目录的其他仓库误报成本包来源。
+function sourceIdentity() {
+  try {
+    const top = execFileSync("git", ["rev-parse", "--show-toplevel"], {
+      cwd: repoRoot,
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "ignore"],
+    }).trim();
+    if (resolve(top).toLowerCase() === resolve(repoRoot).toLowerCase()) {
+      return {
+        sourceCommit: execFileSync("git", ["rev-parse", "HEAD"], { cwd: repoRoot, encoding: "utf8" }).trim(),
+        sourceDirty: Boolean(
+          execFileSync("git", ["status", "--porcelain"], { cwd: repoRoot, encoding: "utf8" }).trim()
+        ),
+        sourceKind: "git",
+      };
+    }
+  } catch {
+    // 没有 Git 的源码下载也可构建，但不声称文件未被本地修改。
+  }
+  const archive = join(repoRoot, "runtime-source.json");
+  const sourceCommit = existsSync(archive) ? JSON.parse(readFileSync(archive, "utf8")).sourceCommit : null;
+  if (sourceCommit !== null && !/^[a-f0-9]{40}$/.test(sourceCommit))
+    throw new Error("Invalid source archive metadata");
+  console.warn("Building an unpacked source tree; sourceDirty is unknown (null).");
+  return { sourceCommit, sourceDirty: null, sourceKind: "archive" };
+}
 const manifest = {
   build: `runtime-ts7-${version}`,
   upstreamCommit: "4a3e210a74d40af91907f52753dd118f8fe8c3ea",
-  sourceCommit: execFileSync("git", ["rev-parse", "HEAD"], { cwd: repoRoot, encoding: "utf8" }).trim(),
-  sourceDirty: Boolean(
-    execFileSync("git", ["status", "--porcelain"], { cwd: repoRoot, encoding: "utf8" }).trim()
-  ),
+  ...sourceIdentity(),
   serverVersion: "0.3.8",
   files: Object.fromEntries(
     files.map((name) => [

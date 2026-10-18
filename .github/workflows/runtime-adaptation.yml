@@ -37,6 +37,7 @@ jobs:
       - run: pnpm exec vitest run packages/server/test/runtimeIndexPolicy.test.ts packages/server/test/lspSmoke.test.ts packages/server/test/lazyRefs.test.ts packages/server/test/fusedScan.test.ts packages/protocol/test/fsWalk.test.ts
       - run: pnpm --filter px-runtime-bridge test
       - run: node scripts/package-runtime-adaptation.mjs
+      - run: node scripts/test-runtime-archive.mjs
       - uses: actions/upload-artifact@v4
         with:
           name: runtime-${{ runner.os }}

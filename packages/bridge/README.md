@@ -24,6 +24,8 @@ pnpm --filter px-runtime-bridge test
 生成目录：`packages/bridge/dist/paradox-toolkit-0.5.5-runtime.1/`。
 其中的 LSP 每次直接从本仓库源码编译；不会下载 npm 的旧 LSP 来替换修复版。
 运行件已打包依赖，需要本机 Node 24；无需在运行件目录安装 npm 依赖。
+源码 ZIP 解压后也可执行上述命令，不要求安装 Git。发行源码包附带 `runtime-source.json` 记录提交；
+没有该元数据的下载仍能构建，但 `sourceCommit` 显示为 null。ZIP 构建的 `sourceDirty` 为 null，表示无法判断本地改动。
 
 ## MCP 客户端
 
