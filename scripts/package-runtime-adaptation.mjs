@@ -7,6 +7,13 @@ import { repoRoot } from "./server-package.mjs";
 
 const version = JSON.parse(readFileSync(join(repoRoot, "packages/bridge/package.json"), "utf8")).version;
 const name = `paradox-toolkit-${version}`;
+const commit = execFileSync("git", ["rev-parse", "HEAD"], { cwd: repoRoot, encoding: "utf8" }).trim();
+const built = JSON.parse(
+  readFileSync(join(repoRoot, "packages/bridge/dist", name, "runtime-build.json"), "utf8")
+);
+if (built.sourceCommit !== commit || built.sourceDirty !== false) {
+  throw new Error("Rebuild the runtime from the current clean commit before packaging.");
+}
 const output = join(repoRoot, "dist/runtime-release");
 mkdirSync(output, { recursive: true });
 // 运行件与对应提交源码一起分发；不把开发目录和个人缓存装进包。
@@ -25,7 +32,7 @@ sourceZip.addFile(
   Buffer.from(
     JSON.stringify(
       {
-        sourceCommit: execFileSync("git", ["rev-parse", "HEAD"], { cwd: repoRoot, encoding: "utf8" }).trim(),
+        sourceCommit: commit,
         version,
       },
       null,
@@ -33,6 +40,8 @@ sourceZip.addFile(
     ) + "\n"
   )
 );
+// ZIP 记录日历字段；固定新增元数据的时间，避免两平台合并产物时源码校验和不同。
+sourceZip.getEntry("runtime-source.json").header.time = new Date(2000, 0, 1);
 sourceZip.writeZip(source);
 const files = [archive, source];
 writeFileSync(

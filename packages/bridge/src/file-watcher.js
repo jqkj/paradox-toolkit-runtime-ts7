@@ -78,7 +78,9 @@ class FileWatcher {
     for (const root of [...new Set(roots.filter(Boolean).map((r) => path.resolve(r)))]) {
       const excluded = new Set(modSet.has(this.key(root)) ? excludeDirectories.map((n) => this.key(n)) : []);
       try {
-        const handle = fs.watch(root, { recursive: true }, (_event, name) => {
+        // Windows 8.3 短路径会触发 libuv 原生断言；监听真实长路径，通知仍用客户端的逻辑根。
+        const watchRoot = fs.realpathSync.native(root);
+        const handle = fs.watch(watchRoot, { recursive: true }, (_event, name) => {
           if (this.closed) return;
           const file = name ? path.resolve(root, String(name)) : root;
           if (!this.allowed(root, file, excluded)) return;

@@ -39,3 +39,39 @@ test("directory noise is ignored; real file changes, same-size writes and deleti
     fs.rmSync(root, { recursive: true, force: true });
   }
 });
+
+test("watching an aliased root preserves logical paths for index notifications", async () => {
+  const base = path.resolve(require("node:os").tmpdir());
+  const temp = fs.mkdtempSync(path.join(base, "px-watch-alias-"));
+  const real = path.join(temp, "physical long directory");
+  const alias = path.join(temp, "alias");
+  fs.mkdirSync(real);
+  fs.symlinkSync(real, alias, process.platform === "win32" ? "junction" : "dir");
+  const physicalFile = path.join(real, "calls.txt");
+  const logicalFile = path.join(alias, "calls.txt");
+  fs.writeFileSync(physicalFile, "before");
+  const changes = [],
+    errors = [];
+  const watcher = new FileWatcher(
+    async (file) => {
+      changes.push(file);
+    },
+    (error) => {
+      errors.push(String(error));
+    }
+  );
+  try {
+    watcher.start([alias], [alias], []);
+    fs.writeFileSync(physicalFile, "after");
+    const deadline = Date.now() + 5000;
+    while (!changes.length && !errors.length && Date.now() < deadline) {
+      await new Promise((resolve) => setTimeout(resolve, 50));
+    }
+    assert.deepEqual(errors, []);
+    assert.deepEqual(changes, [logicalFile]);
+  } finally {
+    watcher.close();
+    assert.ok(path.resolve(temp).startsWith(base + path.sep));
+    fs.rmSync(temp, { recursive: true, force: true });
+  }
+});

@@ -10,6 +10,7 @@ Third-party preview based on upstream Toolkit 0.5.5 / LSP 0.3.8, commit
 - Bounded, conservative token prefilter for lazy references, invalidated on edits.
 - Resolved watcher roots and MCP/PI filesystem watching; preserve explicit unsaved buffers.
 - Windows path normalization for mod inventory/override requests.
+- Canonical filesystem watch targets avoid Windows short-path native watcher crashes while retaining logical paths in index notifications.
 - Portable MCP/PI build without maintainer paths, plus isolated GitHub build and prerelease workflow.
 
 ## Evidence and limits
